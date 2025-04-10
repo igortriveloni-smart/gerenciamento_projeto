@@ -1,9 +1,26 @@
 <?php
 require_once 'config/database.php';
+require_once 'includes/auth.php';
+
+// Verificar se o usuário está logado
+verificarLogin();
+
+// Verificar permissões
+$podeVisualizar = verificarPermissao('visualizar_reunioes');
+$podeCriar = verificarPermissao('criar_reunioes');
+$podeEditar = verificarPermissao('editar_reunioes');
+$podeExcluir = verificarPermissao('excluir_reunioes');
+
+if (!$podeVisualizar) {
+    header('Location: index.php');
+    exit;
+}
+
+$mensagem = '';
 
 // Processar formulário de adição de reunião
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
-    if ($_POST['action'] == 'add') {
+    if ($_POST['action'] == 'add' && $podeCriar) {
         $projeto_id = $_POST['projeto_id'];
         $data_reuniao = $_POST['data_reuniao'];
         $participantes = $_POST['participantes'];
@@ -13,26 +30,48 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
         $link_video = $_POST['link_video'];
         $observacoes = $_POST['observacoes'];
 
-        $sql = "INSERT INTO reunioes (projeto_id, data_reuniao, participantes, principais_decisoes, 
+        try{
+            $sql = "INSERT INTO reunioes (projeto_id, data_reuniao, participantes, principais_decisoes, 
                 proximas_acoes, responsavel, link_video, observacoes) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([$projeto_id, $data_reuniao, $participantes, $principais_decisoes, 
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([$projeto_id, $data_reuniao, $participantes, $principais_decisoes, 
                        $proximas_acoes, $responsavel, $link_video, $observacoes]);
-        
-        header('Location: reunioes.php');
-        exit;
+            
+            $mensagem = '<div class="alert alert-success">Reunião adicionada com sucesso!</div>';
+
+            // Adicionar script para remover a mensagem após 3 segundos
+            echo '<script>
+                setTimeout(function() {
+                    document.querySelector(".alert").remove();
+                }, 3000);
+            </script>';
+        }catch (PDOException $e) {
+            $mensagem = '<div class="alert alert-danger">Erro ao adicionar reunião: ' . $e->getMessage() . '</div>';
+        }
     }
 }
 
 // Processar exclusão de reunião
-if (isset($_GET['delete'])) {
+if (isset($_GET['delete']) && $podeExcluir) {
     $id = $_GET['delete'];
-    $sql = "DELETE FROM reunioes WHERE id = ?";
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([$id]);
-    header('Location: reunioes.php');
-    exit;
+    
+    try{
+        $sql = "DELETE FROM reunioes WHERE id = ?";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$id]);
+        
+        $mensagem = '<div class="alert alert-success">Reunião excluída com sucesso!</div>';
+
+        // Adicionar script para remover a mensagem após 3 segundos
+        echo '<script>
+            setTimeout(function() {
+                document.querySelector(".alert").remove();
+            }, 3000);
+        </script>';
+    }catch (PDOException $e){
+        $mensagem = '<div class="alert alert-danger">Erro ao excluir reunião: ' . $e->getMessage() . '</div>';
+    }
 }
 
 // Buscar projetos para o select
@@ -59,6 +98,8 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
             </button>
         </div>
 
+        <?php echo $mensagem; ?> 
+
         <div class="card">
             <div class="card-body">
                 <div class="table-responsive">
@@ -71,7 +112,9 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
                                 <th>Participantes</th>
                                 <th>Decisões</th>
                                 <th>Próximas Ações</th>
+                                <?php if ($podeEditar || $podeExcluir): ?>
                                 <th>Ações</th>
+                                <?php endif; ?>                                
                             </tr>
                         </thead>
                         <tbody>
@@ -90,16 +133,22 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
                                     <td><?php echo htmlspecialchars($row['participantes']); ?></td>
                                     <td><?php echo htmlspecialchars($row['principais_decisoes']); ?></td>
                                     <td><?php echo htmlspecialchars($row['proximas_acoes']); ?></td>
+                                    <?php if ($podeEditar || $podeExcluir): ?>
                                     <td>
                                         <div class="btn-group">
+                                            <?php if ($podeEditar): ?>
                                             <a href="editar_reuniao.php?id=<?php echo $row['id']; ?>" class="btn btn-sm btn-warning">
                                                 <i class="bi bi-pencil"></i>
                                             </a>
+                                            <?php endif; ?>
+                                            <?php if ($podeExcluir): ?>
                                             <a href="?delete=<?php echo $row['id']; ?>" class="btn btn-sm btn-danger" onclick="return confirm('Tem certeza que deseja excluir esta reunião?')">
                                                 <i class="bi bi-trash"></i>
                                             </a>
+                                            <?php endif; ?>
                                         </div>
                                     </td>
+                                    <?php endif; ?>
                                 </tr>
                                 <?php
                             }
@@ -111,6 +160,7 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
         </div>
     </div>
 
+    <?php if ($podeCriar): ?>
     <!-- Modal Nova Reunião -->
     <div class="modal fade" id="novaReuniaoModal" tabindex="-1">
         <div class="modal-dialog">
@@ -177,6 +227,7 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
             </div>
         </div>
     </div>
+    <?php endif; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>

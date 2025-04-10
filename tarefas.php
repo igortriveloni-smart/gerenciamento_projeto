@@ -62,11 +62,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
 // Processar exclusão de tarefa
 if (isset($_GET['delete']) && $podeExcluir) {
     $id = $_GET['delete'];
-    $sql = "DELETE FROM tarefas WHERE id = ?";
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([$id]);
-    header('Location: tarefas.php');
-    exit;
+    try {
+        $sql = "DELETE FROM tarefas WHERE id = ?";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$id]);
+
+        $mensagem = '<div class="alert alert-success">
+            Tarefa excluída com sucesso!</div>';
+
+        // Adicionar script para remover a mensagem após 3 segundos
+        echo '<script>
+            setTimeout(function() {
+                document.querySelector(".alert").remove();
+            }, 3000);
+        </script>';
+    } catch (PDOException $e) {
+        $mensagem = '<div class="alert alert-danger">
+            Erro ao excluir tarefa: ' . $e->getMessage() . '</div>';
+    }
 }
 
 // Buscar projetos para o select
@@ -95,38 +108,93 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
             <?php endif; ?>
         </div>
 
-        <?php if ($mensagem): ?>
-            <div class="alert <?php echo str_contains($mensagem, 'Erro') ? 'alert-danger' : 'alert-success'; ?> alert-dismissible fade show" role="alert">
-                <?php echo $mensagem; ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        <?php endif; ?>
+        <?php echo $mensagem; ?>      
 
         <div class="card">
             <div class="card-body">
+                 <!-- Filtros -->
+                <form method="GET" class="mb-3">
+                    <div class="row">
+                        <!-- Filtro de Projetos -->
+                        <div class="col-md-4">
+                            <label for="filtro_projeto" class="form-label">Filtrar por Projeto</label>
+                            <select class="form-select" id="filtro_projeto" name="projeto_id" onchange="this.form.submit()">
+                                <option value="">Todos os Projetos</option>
+                                <?php foreach ($projetos as $projeto): ?>
+                                    <option value="<?php echo $projeto['id']; ?>" 
+                                        <?php echo (isset($_GET['projeto_id']) && $_GET['projeto_id'] == $projeto['id']) ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($projeto['nome']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <!-- Filtro de Sprints -->
+                        <div class="col-md-4">
+                            <label for="filtro_sprint" class="form-label">Filtrar por Sprint</label>
+                            <select class="form-select" id="filtro_sprint" name="sprint" onchange="this.form.submit()">
+                                <option value="">Todas as Sprints</option>
+                                <?php for ($i = 1; $i <= 10; $i++): ?>
+                                    <option value="<?php echo $i; ?>" 
+                                        <?php echo (isset($_GET['sprint']) && $_GET['sprint'] == $i) ? 'selected' : ''; ?>>
+                                        Sprint <?php echo $i; ?>
+                                    </option>
+                                <?php endfor; ?>
+                            </select>
+                        </div>
+                    </div>
+                </form>
+
                 <div class="table-responsive">
                     <table class="table table-striped">
                         <thead>
                             <tr>
-                                <th>Título</th>
-                                <th>Projeto</th>
-                                <th>Responsável</th>
                                 <th>Etapa</th>
+                                <th>Descrição</th>
+                                <th>Sprint</th>
+                                <th>Responsável</th>                                
                                 <th>Datas</th>
+                                <th>Dias Úteis</th>
                                 <th>Status</th>
-                                <?php if ($podeEditar && $podeExcluir): ?>
+                                <?php if ($podeEditar || $podeExcluir): ?>
                                 <th>Ações</th>
                                 <?php endif; ?>
                             </tr>
                         </thead>
                         <tbody>
                             <?php
-                           $sql = "SELECT t.*, p.nome as projeto_nome, ec.etapa as etapa_nome 
-                                    FROM tarefas t 
-                                    JOIN projetos p ON t.projeto_id = p.id 
-                                    JOIN etapas_cronograma ec ON t.etapa_id = ec.id 
-                                    ORDER BY t.data_inicio DESC";
-                            $stmt = $pdo->query($sql);
+                            // Modificar a consulta SQL para aplicar os filtros
+                            $sql = "SELECT t.*, p.nome as projeto_nome, ec.etapa as etapa_nome 
+                            FROM tarefas t 
+                            JOIN projetos p ON t.projeto_id = p.id 
+                            JOIN etapas_cronograma ec ON t.etapa_id = ec.id";
+
+                            $conditions = [];
+                            $params = [];
+
+                            if (isset($_GET['projeto_id']) && !empty($_GET['projeto_id'])) {
+                                $conditions[] = "t.projeto_id = :projeto_id";
+                                $params[':projeto_id'] = $_GET['projeto_id'];
+                            }
+
+                            if (isset($_GET['sprint']) && !empty($_GET['sprint'])) {
+                                $conditions[] = "t.sprint = :sprint";
+                                $params[':sprint'] = $_GET['sprint'];
+                            }
+
+                            if (!empty($conditions)) {
+                                $sql .= " WHERE " . implode(" AND ", $conditions);
+                            }
+
+                            $sql .= " ORDER BY t.data_inicio DESC";
+                            $stmt = $pdo->prepare($sql);
+
+                            foreach ($params as $key => $value) {
+                                $stmt->bindValue($key, $value, PDO::PARAM_STR);
+                            }
+
+                            $stmt->execute();
+
                             while ($row = $stmt->fetch()) {
                                 $statusClass = '';
                                 switch($row['status']) {
@@ -151,22 +219,25 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
                                 }
                                 ?>
                                 <tr>
+                                    <td><?php echo htmlspecialchars($row['etapa_nome']); ?></td>
                                     <td>
                                         <strong><?php echo htmlspecialchars($row['titulo']); ?></strong><br>
                                         <small class="text-muted"><?php echo htmlspecialchars($row['projeto_nome']); ?></small>
                                     </td>
                                     <td>Sprint <?php echo $row['sprint']; ?></td>
-                                    <td><?php echo htmlspecialchars($row['responsavel']); ?></td>
-                                    <td><?php echo htmlspecialchars($row['etapa_nome']); ?></td>
+                                    <td><?php echo htmlspecialchars($row['responsavel']); ?></td>                                    
                                     <td>
-                                        Início: <?php echo date('d/m/Y', strtotime($row['data_inicio'])); ?><br>
-                                        Planejado: <?php echo date('d/m/Y', strtotime($row['data_termino_planejada'])); ?><br>
+                                        <strong>Início:</strong> <?php echo date('d/m/Y', strtotime($row['data_inicio'])); ?><br>
+                                        <strong>Planejado:</strong> <?php echo date('d/m/Y', strtotime($row['data_termino_planejada'])); ?><br>
                                         <?php if ($row['data_termino_real']): ?>
-                                            Real: <?php echo date('d/m/Y', strtotime($row['data_termino_real'])); ?>
+                                            <strong>Real:</strong> <?php echo date('d/m/Y', strtotime($row['data_termino_real'])); ?>
                                         <?php endif; ?>
                                     </td>
+                                    <td>
+                                        <?php echo $row['dias_uteis'] ? htmlspecialchars($row['dias_uteis']) : 'N/A'; ?>
+                                    </td>
                                     <td><span class="badge <?php echo $statusClass; ?>"><?php echo htmlspecialchars($row['status']); ?></span></td>
-                                    <?php if ($podeEditar && $podeExcluir): ?>
+                                    <?php if ($podeEditar || $podeExcluir): ?>
                                     <td>
                                         <div class="btn-group">
                                             <?php if ($podeEditar): ?>      

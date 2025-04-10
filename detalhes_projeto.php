@@ -3,6 +3,30 @@ require_once 'config/database.php';
 require_once 'includes/cache.php';
 require_once 'includes/pagination.php';
 require_once 'includes/charts.php';
+require_once 'includes/auth.php';
+
+// Verificar se o usuário está logado
+verificarLogin();
+
+// Verificar permissões
+$podeVisualizarProjeto = verificarPermissao('visualizar_projetos');
+$podeVisualizarCronograma = verificarPermissao('visualizar_cronograma');
+$podeVisualizarTarefas = verificarPermissao('visualizar_tarefas');
+$podeVisualizarStakeholders = verificarPermissao('visualizar_stakeholders');
+$podeVisualizarReunioes = verificarPermissao('visualizar_reunioes');
+$podeVisualizarRelatorios = verificarPermissao('visualizar_relatorios');
+$podeCriarCronograma = verificarPermissao('criar_cronograma');
+$podeCriarTarefas = verificarPermissao('criar_tarefas');
+$podeCriarStakeholders = verificarPermissao('criar_stakeholders');
+$podeCriarReunioes = verificarPermissao('criar_reunioes');
+$podeEditar = verificarPermissao('editar_projetos');
+
+if (!$podeVisualizarProjeto || !$podeVisualizarCronograma ||
+    !$podeVisualizarTarefas || !$podeVisualizarStakeholders ||
+    !$podeVisualizarReunioes || !$podeVisualizarRelatorios) {
+    header('Location: index.php');
+    exit;
+}
 
 if (!isset($_GET['id'])) {
     header('Location: index.php');
@@ -106,9 +130,11 @@ $reunioes = $stmt->fetchAll();
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2><?php echo htmlspecialchars($projeto['nome']); ?></h2>
             <div>
+                <?php if ($podeEditar): ?>
                 <a href="editar_projeto.php?id=<?php echo $id; ?>" class="btn btn-warning">
                     <i class="bi bi-pencil"></i> Editar Projeto
                 </a>
+                <?php endif; ?>
                 <a href="index.php" class="btn btn-secondary">
                     <i class="bi bi-arrow-left"></i> Voltar
                 </a>
@@ -190,26 +216,34 @@ $reunioes = $stmt->fetchAll();
 
         <!-- Sistema de Abas -->
         <ul class="nav nav-tabs mb-4" id="projectTabs" role="tablist">
+            <?php if ($podeVisualizarCronograma): ?>
             <li class="nav-item" role="presentation">
                 <button class="nav-link active" id="cronograma-tab" data-bs-toggle="tab" data-bs-target="#cronograma" type="button" role="tab">
                     <i class="bi bi-calendar"></i> Cronograma
                 </button>
             </li>
+            <?php endif; ?>
+            <?php if ($podeVisualizarTarefas): ?>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="tarefas-tab" data-bs-toggle="tab" data-bs-target="#tarefas" type="button" role="tab">
                     <i class="bi bi-list-task"></i> Tarefas
                 </button>
             </li>
+            <?php endif; ?>
+            <?php if ($podeVisualizarStakeholders): ?>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="stakeholders-tab" data-bs-toggle="tab" data-bs-target="#stakeholders" type="button" role="tab">
                     <i class="bi bi-people"></i> Stakeholders
                 </button>
             </li>
+            <?php endif; ?>
+            <?php if ($podeVisualizarReunioes): ?>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="reunioes-tab" data-bs-toggle="tab" data-bs-target="#reunioes" type="button" role="tab">
                     <i class="bi bi-camera-video"></i> Reuniões
                 </button>
             </li>
+            <?php endif; ?>
         </ul>
 
         <div class="tab-content" id="projectTabsContent">
@@ -218,22 +252,24 @@ $reunioes = $stmt->fetchAll();
                 <div class="card mb-4">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="card-title mb-0">Cronograma</h5>
+                        <?php if ($podeCriarCronograma): ?>
                         <a href="cronograma.php?projeto_id=<?php echo $id; ?>" class="btn btn-sm btn-primary">
                             <i class="bi bi-plus-circle"></i> Nova Etapa
                         </a>
+                        <?php endif; ?>
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
-                            <table class="table table-striped" id="cronogramaTable">
+                            <table class="table table-striped" <?php if($podeVisualizarRelatorios) { echo 'id="cronogramaTable"'; } ?>>
                                 <thead>
                                     <tr>
                                         <th>Etapa</th>
                                         <th>Descrição</th>
                                         <th>Tipo</th>
                                         <th>Responsável</th>
-                                        <th>Data Início</th>
-                                        <th>Data Término Planejada</th>
-                                        <th>Data Término Real</th>
+                                        <th>Início</th>
+                                        <th>Término Planejada</th>
+                                        <th>Término Real</th>
                                         <th>Status</th>
                                         <th>Ações</th>
                                     </tr>
@@ -280,22 +316,24 @@ $reunioes = $stmt->fetchAll();
                 <div class="card mb-4">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="card-title mb-0">Tarefas</h5>
+                        <?php if ($podeCriarTarefas): ?>
                         <a href="tarefas.php?projeto_id=<?php echo $id; ?>" class="btn btn-sm btn-primary">
                             <i class="bi bi-plus-circle"></i> Nova Tarefa
                         </a>
+                        <?php endif; ?>
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
-                            <table class="table table-striped" id="tarefasTable">
+                            <table class="table table-striped"  <?php if($podeVisualizarRelatorios) { echo 'id="tarefasTable"'; } ?>>
                                 <thead>
                                     <tr>
                                         <th>Título</th>
                                         <th>Descrição</th>
                                         <th>Sprint</th>
                                         <th>Responsável</th>
-                                        <th>Data Início</th>
-                                        <th>Data Término Planejada</th>
-                                        <th>Data Término Real</th>
+                                        <th>Início</th>
+                                        <th>Término Planejada</th>
+                                        <th>Término Real</th>
                                         <th>Dias Úteis</th>
                                         <th>Status</th>
                                         <th>Ações</th>
@@ -345,13 +383,15 @@ $reunioes = $stmt->fetchAll();
                 <div class="card mb-4">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="card-title mb-0">Stakeholders</h5>
+                        <?php if ($podeCriarStakeholders): ?>
                         <a href="stakeholders.php?projeto_id=<?php echo $id; ?>" class="btn btn-sm btn-primary">
                             <i class="bi bi-plus-circle"></i> Novo Stakeholder
                         </a>
+                        <?php endif; ?>
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
-                            <table class="table table-striped" id="stakeholdersTable">
+                            <table class="table table-striped" <?php if($podeVisualizarRelatorios) { echo 'id="stakeholdersTable"'; } ?>>
                                 <thead>
                                     <tr>
                                         <th>Nome</th>
@@ -396,13 +436,15 @@ $reunioes = $stmt->fetchAll();
                 <div class="card mb-4">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="card-title mb-0">Reuniões</h5>
+                        <?php if ($podeCriarReunioes): ?>
                         <a href="reunioes.php?projeto_id=<?php echo $id; ?>" class="btn btn-sm btn-primary">
                             <i class="bi bi-plus-circle"></i> Nova Reunião
                         </a>
+                        <?php endif; ?>
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
-                            <table class="table table-striped" id="reunioesTable">
+                            <table class="table table-striped" <?php if($podeVisualizarRelatorios) { echo 'id="reunioesTable"'; } ?>>
                                 <thead>
                                     <tr>
                                         <th>Data</th>

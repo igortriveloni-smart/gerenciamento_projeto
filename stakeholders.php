@@ -1,9 +1,26 @@
 <?php
 require_once 'config/database.php';
+require_once 'includes/auth.php';
+
+// Verificar se o usuário está logado
+verificarLogin();
+
+// Verificar permissões
+$podeVisualizar = verificarPermissao('visualizar_stakeholders');
+$podeCriar = verificarPermissao('criar_stakeholders');
+$podeEditar = verificarPermissao('editar_stakeholders');
+$podeExcluir = verificarPermissao('excluir_stakeholders');
+
+if (!$podeVisualizar) {
+    header('Location: index.php');
+    exit;
+}
+
+$mensagem = '';
 
 // Processar formulário de adição de stakeholder
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
-    if ($_POST['action'] == 'add') {
+    if ($_POST['action'] == 'add' && $podeCriar) {
         $projeto_id = $_POST['projeto_id'];
         $nome = $_POST['nome'];
         $funcao_area = $_POST['funcao_area'];
@@ -11,24 +28,49 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['action'])) {
         $email = $_POST['email'];
         $observacao = $_POST['observacao'];
 
-        $sql = "INSERT INTO stakeholders (projeto_id, nome, funcao_area, telefone, email, observacao) 
+        try{
+            $sql = "INSERT INTO stakeholders (projeto_id, nome, funcao_area, telefone, email, observacao) 
                 VALUES (?, ?, ?, ?, ?, ?)";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([$projeto_id, $nome, $funcao_area, $telefone, $email, $observacao]);
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([$projeto_id, $nome, $funcao_area, $telefone, $email, $observacao]);
+
+            $mensagem = '<div class="alert alert-success">
+            Stakeholders adicionado com sucesso!</div>';
         
-        header('Location: stakeholders.php');
-        exit;
+            // Adicionar script para remover a mensagem após 3 segundos
+            echo '<script>
+                setTimeout(function() {
+                    document.querySelector(".alert").remove();
+                }, 3000);
+            </script>';
+        }catch (PDOException $e) {
+            $mensagem = '<div class="alert alert-danger">
+            Erro ao adicionar stakeholder: ' . $e->getMessage() . '</div>';
+        }        
     }
 }
 
 // Processar exclusão de stakeholder
-if (isset($_GET['delete'])) {
+if (isset($_GET['delete']) && $podeExcluir) {
     $id = $_GET['delete'];
-    $sql = "DELETE FROM stakeholders WHERE id = ?";
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([$id]);
-    header('Location: stakeholders.php');
-    exit;
+    try {
+        $sql = "DELETE FROM stakeholders WHERE id = ?";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$id]);
+
+        $mensagem = '<div class="alert alert-success">
+            Stakeholder excluído com sucesso!</div>';
+
+        // Adicionar script para remover a mensagem após 3 segundos
+        echo '<script>
+            setTimeout(function() {
+                document.querySelector(".alert").remove();
+            }, 3000);
+        </script>';
+    } catch (PDOException $e) {
+        $mensagem = '<div class="alert alert-danger">
+            Erro ao excluir stakeholder: ' . $e->getMessage() . '</div>';
+    }
 }
 
 // Buscar projetos para o select
@@ -50,10 +92,14 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
     <div class="container mt-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2>Stakeholders</h2>
+            <?php if ($podeCriar): ?>
             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#novoStakeholderModal">
                 <i class="bi bi-plus-circle"></i> Novo Stakeholder
             </button>
+            <?php endif; ?>
         </div>
+
+        <?php echo $mensagem; ?> 
 
         <div class="card">
             <div class="card-body">
@@ -67,7 +113,9 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
                                 <th>Telefone</th>
                                 <th>E-mail</th>
                                 <th>Observações</th>
+                                <?php if ($podeEditar || $podeExcluir): ?>
                                 <th>Ações</th>
+                                <?php endif; ?>
                             </tr>
                         </thead>
                         <tbody>
@@ -85,17 +133,23 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
                                     <td><?php echo htmlspecialchars($row['funcao_area']); ?></td>
                                     <td><?php echo htmlspecialchars($row['telefone']); ?></td>
                                     <td><?php echo htmlspecialchars($row['email']); ?></td>
-                                    <td><?php echo htmlspecialchars($row['observacao']); ?></td>           
+                                    <td><?php echo htmlspecialchars($row['observacao']); ?></td>    
+                                    <?php if ($podeEditar || $podeExcluir): ?>       
                                     <td>
                                         <div class="btn-group">
+                                            <?php if ($podeEditar): ?>    
                                             <a href="editar_stakeholder.php?id=<?php echo $row['id']; ?>" class="btn btn-sm btn-warning">
                                                 <i class="bi bi-pencil"></i>
                                             </a>
+                                            <?php endif; ?>
+                                            <?php if ($podeExcluir): ?>
                                             <a href="?delete=<?php echo $row['id']; ?>" class="btn btn-sm btn-danger" onclick="return confirm('Tem certeza que deseja excluir este stakeholder?')">
                                                 <i class="bi bi-trash"></i>
                                             </a>
+                                            <?php endif; ?>
                                         </div>
                                     </td>
+                                    <?php endif; ?>
                                 </tr>
                                 <?php
                             }
@@ -107,6 +161,7 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
         </div>
     </div>
 
+    <?php if ($podeCriar): ?>
     <!-- Modal Novo Stakeholder -->
     <div class="modal fade" id="novoStakeholderModal" tabindex="-1">
         <div class="modal-dialog">
@@ -141,17 +196,17 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
 
                         <div class="mb-3">
                             <label for="telefone" class="form-label">Telefone</label>
-                            <input type="text" class="form-control" id="telefone" name="telefone" required>
+                            <input type="tel" class="form-control" id="telefone" name="telefone" required>
                         </div>  
 
                         <div class="mb-3">
                             <label for="email" class="form-label">E-mail</label>
-                            <input type="text" class="form-control" id="email" name="email" required>
+                            <input type="email" class="form-control" id="email" name="email" required>
                         </div>
 
                         <div class="mb-3">
-                            <label for="observacoes" class="form-label">Observações</label>
-                            <textarea class="form-control" id="observacoes" name="observacoes" rows="3"></textarea>                            
+                            <label for="observacao" class="form-label">Observações</label>
+                            <textarea class="form-control" id="observacao" name="observacao" rows="3"></textarea>                            
                         </div>
 
                         <div class="modal-footer">
@@ -163,7 +218,48 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
             </div>
         </div>
     </div>
+    <?php endif; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const telefoneInput = document.getElementById('telefone');
+            const emailInput = document.getElementById('email');
+            const form = document.getElementById('novoStakeholderForm');
+
+            // Formatar telefone no padrão (DDD) 12345-6789
+            telefoneInput.addEventListener('input', function () {
+                let telefone = telefoneInput.value.replace(/\D/g, ''); // Remove caracteres não numéricos
+                if (telefone.length > 11) telefone = telefone.slice(0, 11); // Limita a 11 dígitos
+                if (telefone.length === 11) {
+                    telefone = `(${telefone.slice(0, 2)}) ${telefone.slice(2, 7)}-${telefone.slice(7)}`;
+                }
+                telefoneInput.value = telefone;
+            });
+
+            // Validar e padronizar o e-mail
+            emailInput.addEventListener('blur', function () {
+                emailInput.value = emailInput.value.trim().toLowerCase(); // Remove espaços e converte para minúsculas
+            });
+
+            // Validar o formulário antes de enviar
+            form.addEventListener('submit', function (event) {
+                const telefone = telefoneInput.value.replace(/\D/g, '');
+                if (telefone.length !== 11) {
+                    alert('O telefone deve conter 11 dígitos (incluindo DDD).');
+                    event.preventDefault();
+                    return;
+                }
+
+                const email = emailInput.value;
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(email)) {
+                    alert('Por favor, insira um e-mail válido.');
+                    event.preventDefault();
+                    return;
+                }
+            });
+        });
+    </script>
 </body>
 </html> 

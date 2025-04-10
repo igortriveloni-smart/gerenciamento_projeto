@@ -30,7 +30,7 @@ if (isset($_GET['id'])) {
 
 // Processar formulário
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $projeto_id = $_POST['projeto_id'];
+    //$projeto_id = $_POST['projeto_id'];
     $etapa_id = $_POST['etapa_id'];
     $titulo = $_POST['titulo'];
     $descricao = $_POST['descricao'];
@@ -54,21 +54,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
 
         $sql = "UPDATE tarefas SET 
-                projeto_id = ?, etapa_id = ?, titulo = ?, descricao = ?, 
+                etapa_id = ?, titulo = ?, descricao = ?, 
                 sprint = ?, responsavel = ?, data_inicio = ?, 
                 data_termino_planejada = ?, data_termino_real = ?, 
                 dias_uteis = ?, status = ?, comentarios = ? 
                 WHERE id = ?";
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([$projeto_id, $etapa_id, $titulo, $descricao, $sprint, $responsavel, 
+        $stmt->execute([$etapa_id, $titulo, $descricao, $sprint, $responsavel, 
                        $data_inicio, $data_termino_planejada, $data_termino_real, $dias_uteis, $status, $comentarios, $id]);
         
         $mensagem = '<div class="alert alert-success">Tarefa atualizada com sucesso! Redirecionando em 3 segundos...</div>';
         echo '<script>
-            setTimeout(function() {
-                window.location.href = "tarefas.php";
-            }, 3000);
-        </script>';
+                setTimeout(function() {
+                    window.location.href = "tarefas.php";
+                }, 3000);
+            </script>';
     } catch(PDOException $e) {
         $mensagem = '<div class="alert alert-danger">Erro ao atualizar tarefa: ' . $e->getMessage() . '</div>';
     } catch(Exception $e) {
@@ -197,7 +197,7 @@ $etapas = $etapas->fetchAll();
                             </div>
 
                             <div class="d-flex justify-content-between">
-                                <a href="tarefas.php" class="btn btn-secondary">Voltar</a>
+                                <a href="tarefas.php" class="btn btn-secondary">Cancelar</a>
                                 <button type="submit" class="btn btn-primary">Salvar Alterações</button>
                             </div>
                         </form>

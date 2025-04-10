@@ -150,6 +150,12 @@ $usuarios = $stmt->fetchAll();
     <title>Gerenciar Usuários - Gerenciador de Projetos</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+    .dropdown-menu {
+        max-height: 400px; /* Limita a altura */
+        overflow-y: auto; /* Adiciona barra de rolagem se necessário */
+    }
+</style>
 </head>
 <body>
     <?php include 'includes/nav.php'; ?>
@@ -179,7 +185,37 @@ $usuarios = $stmt->fetchAll();
                         <tr>
                             <td><?php echo htmlspecialchars($usuario['nome']); ?></td>
                             <td><?php echo htmlspecialchars($usuario['email']); ?></td>
-                            <td><?php echo htmlspecialchars($usuario['permissoes'] ?? 'Nenhuma'); ?></td>
+                            <td>
+                                <?php if (!empty($usuario['permissoes'])): ?>
+                                    <button class="btn btn-sm btn-secondary" data-bs-toggle="modal" data-bs-target="#permissoesModal_<?php echo $usuario['id']; ?>">
+                                        Ver Permissões
+                                    </button>
+
+                                    <!-- Modal para exibir permissões -->
+                                    <div class="modal fade" id="permissoesModal_<?php echo $usuario['id']; ?>" tabindex="-1" aria-labelledby="permissoesModalLabel_<?php echo $usuario['id']; ?>" aria-hidden="true">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title" id="permissoesModalLabel_<?php echo $usuario['id']; ?>">Permissões de <?php echo htmlspecialchars($usuario['nome']); ?></h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <ul class="list-group">
+                                                        <?php foreach (explode(',', $usuario['permissoes']) as $permissao): ?>
+                                                            <li class="list-group-item"><?php echo htmlspecialchars($permissao); ?></li>
+                                                        <?php endforeach; ?>
+                                                    </ul>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php else: ?>
+                                    Nenhuma
+                                <?php endif; ?>
+                            </td>
                             <td>
                                 <button type="button" class="btn btn-sm btn-warning" 
                                         onclick="editarUsuario(<?php echo $usuario['id']; ?>, '<?php echo htmlspecialchars($usuario['nome']); ?>', '<?php echo htmlspecialchars($usuario['email']); ?>', '<?php echo htmlspecialchars($usuario['permissoes'] ?? ''); ?>')">

@@ -56,10 +56,7 @@ if (isset($_GET['delete']) && $podeExcluir) {
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$id]);
         
-        $mensagem = '<div class="alert alert-success alert-dismissible fade show" role="alert">
-            Etapa excluída com sucesso!
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>';
+        $mensagem = '<div class="alert alert-success" role="alert">Etapa excluída com sucesso!<div>';
         
         // Adicionar script para remover a mensagem após 3 segundos
         echo '<script>
@@ -68,9 +65,8 @@ if (isset($_GET['delete']) && $podeExcluir) {
             }, 3000);
         </script>';
     } catch(PDOException $e) {
-        $mensagem = '<div class="alert alert-danger alert-dismissible fade show" role="alert">
-            Erro ao excluir etapa: ' . $e->getMessage() . '
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        $mensagem = '<div class="alert alert-danger" role="alert">
+            Erro ao excluir etapa: ' . $e->getMessage() . '           
         </div>';
     }
 }
@@ -105,12 +101,31 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
 
         <div class="card">
             <div class="card-body">
+                <!-- Filtro de Projetos -->
+                <form method="GET" class="mb-3">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label for="filtro_projeto" class="form-label">Filtrar por Projeto</label>
+                            <select class="form-select" id="filtro_projeto" name="projeto_id" onchange="this.form.submit()">
+                                <option value="">Todos os Projetos</option>
+                                <?php foreach ($projetos as $projeto): ?>
+                                    <option value="<?php echo $projeto['id']; ?>" 
+                                        <?php echo (isset($_GET['projeto_id']) && $_GET['projeto_id'] == $projeto['id']) ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($projeto['nome']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Tabela de Etapas -->
                 <div class="table-responsive">
                     <table class="table table-striped">
                         <thead>
                             <tr>
-                                <th>Etapa</th>
                                 <th>Projeto</th>
+                                <th>Etapa</th>                                
                                 <th>Tipo</th>
                                 <th>Responsável</th>
                                 <th>Datas</th>
@@ -122,26 +137,39 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
                         </thead>
                         <tbody>
                             <?php
+                            // Modificar a consulta SQL para aplicar o filtro
                             $sql = "SELECT ec.*, p.nome as projeto_nome 
-                                   FROM etapas_cronograma ec 
-                                   JOIN projetos p ON ec.projeto_id = p.id 
-                                   ORDER BY ec.data_inicio ASC";
-                            $stmt = $pdo->query($sql);
+                                    FROM etapas_cronograma ec 
+                                    JOIN projetos p ON ec.projeto_id = p.id";
+
+                            if (isset($_GET['projeto_id']) && !empty($_GET['projeto_id'])) {
+                                $sql .= " WHERE ec.projeto_id = :projeto_id";
+                            }
+
+                            $sql .= " ORDER BY ec.data_inicio ASC";
+                            $stmt = $pdo->prepare($sql);
+
+                            if (isset($_GET['projeto_id']) && !empty($_GET['projeto_id'])) {
+                                $stmt->bindParam(':projeto_id', $_GET['projeto_id'], PDO::PARAM_INT);
+                            }
+
+                            $stmt->execute();
+
                             while ($row = $stmt->fetch()) {
                                 ?>
                                 <tr>
+                                    <td><?php echo htmlspecialchars($row['projeto_nome']); ?></td>
                                     <td>
                                         <strong><?php echo htmlspecialchars($row['etapa']); ?></strong><br>
                                         <small class="text-muted"><?php echo htmlspecialchars($row['descricao']); ?></small>
-                                    </td>
-                                    <td><?php echo htmlspecialchars($row['projeto_nome']); ?></td>
+                                    </td>                                    
                                     <td><?php echo htmlspecialchars($row['tipo']); ?></td>
                                     <td><?php echo htmlspecialchars($row['responsavel']); ?></td>
                                     <td>
-                                        Início: <?php echo date('d/m/Y', strtotime($row['data_inicio'])); ?><br>
-                                        Planejado: <?php echo date('d/m/Y', strtotime($row['data_termino_planejada'])); ?><br>
+                                        <strong>Início:</strong> <?php echo date('d/m/Y', strtotime($row['data_inicio'])); ?><br>
+                                        <strong>Planejado:</strong> <?php echo date('d/m/Y', strtotime($row['data_termino_planejada'])); ?><br>
                                         <?php if ($row['data_termino_real']): ?>
-                                            Real: <?php echo date('d/m/Y', strtotime($row['data_termino_real'])); ?>
+                                            <strong>Real:</strong> <?php echo date('d/m/Y', strtotime($row['data_termino_real'])); ?>
                                         <?php endif; ?>
                                     </td>
                                     <td>
@@ -198,7 +226,6 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
             </div>
         </div>
     </div>
-
     <?php if ($podeCriar): ?>
     <!-- Modal Nova Etapa -->
     <div class="modal fade" id="novaEtapaModal" tabindex="-1">
@@ -252,17 +279,17 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
                         </div>
 
                         <div class="mb-3">
-                            <label for="data_inicio" class="form-label">Data de Início</label>
+                            <label for="data_inicio" class="form-label">Início</label>
                             <input type="date" class="form-control" id="data_inicio" name="data_inicio" required>
                         </div>
 
                         <div class="mb-3">
-                            <label for="data_termino_planejada" class="form-label">Data de Término Planejada</label>
+                            <label for="data_termino_planejada" class="form-label">Término Planejada</label>
                             <input type="date" class="form-control" id="data_termino_planejada" name="data_termino_planejada" required>
                         </div>
 
                         <div class="mb-3">
-                            <label for="data_termino_real" class="form-label">Data de Término Real</label>
+                            <label for="data_termino_real" class="form-label">Término Real</label>
                             <input type="date" class="form-control" id="data_termino_real" name="data_termino_real">
                         </div>
 
