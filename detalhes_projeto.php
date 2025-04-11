@@ -285,10 +285,32 @@ $reunioes = $stmt->fetchAll();
                                             <td><?php echo date('d/m/Y', strtotime($etapa['data_termino_planejada'])); ?></td>
                                             <td><?php echo $etapa['data_termino_real'] ? date('d/m/Y', strtotime($etapa['data_termino_real'])) : '-'; ?></td>
                                             <td>
-                                                <span class="badge bg-<?php echo $etapa['status'] == 'Concluída' ? 'success' : 
-                                                    ($etapa['status'] == 'Em Andamento' ? 'primary' : 'secondary'); ?>">
-                                                    <?php echo htmlspecialchars($etapa['status']); ?>
-                                                </span>
+                                            <span class="badge bg-<?php 
+                                                switch($etapa['status']) {
+                                                    case 'Não Iniciado':
+                                                        echo 'secondary';
+                                                        break;
+                                                    case 'Em Andamento':
+                                                        echo 'primary';
+                                                        break;
+                                                    case 'Concluído':
+                                                        echo 'success';
+                                                        break;
+                                                    case 'Atrasado':
+                                                        echo 'danger';
+                                                        break;
+                                                    case 'Cancelado':
+                                                        echo 'dark';
+                                                        break;
+                                                    case 'Aguardando':
+                                                        echo 'warning';
+                                                        break;
+                                                    default:
+                                                        echo 'secondary';
+                                                }
+                                            ?>">
+                                            <?php echo htmlspecialchars($etapa['status']); ?>
+                                        </span>
                                             </td>
                                             <td>
                                                 <div class="btn-group">
@@ -351,11 +373,32 @@ $reunioes = $stmt->fetchAll();
                                             <td><?php echo $tarefa['data_termino_real'] ? date('d/m/Y', strtotime($tarefa['data_termino_real'])) : '-'; ?></td>
                                             <td><?php echo htmlspecialchars($tarefa['dias_uteis']); ?></td>
                                             <td>
-                                                <span class="badge bg-<?php echo $tarefa['status'] == 'Concluído' ? 'success' : 
-                                                    ($tarefa['status'] == 'Em Andamento' ? 'primary' : 
-                                                    ($tarefa['status'] == 'Atrasado' ? 'danger' : 'secondary')); ?>">
-                                                    <?php echo htmlspecialchars($tarefa['status']); ?>
-                                                </span>
+                                            <span class="badge bg-<?php 
+                                                switch($tarefa['status']) {
+                                                    case 'Não Iniciado':
+                                                        echo 'secondary';
+                                                        break;
+                                                    case 'Em Andamento':
+                                                        echo 'primary';
+                                                        break;
+                                                    case 'Concluído':
+                                                        echo 'success';
+                                                        break;
+                                                    case 'Atrasado':
+                                                        echo 'danger';
+                                                        break;
+                                                    case 'Cancelado':
+                                                        echo 'dark';
+                                                        break;
+                                                    case 'Aguardando':
+                                                        echo 'warning';
+                                                        break;
+                                                    default:
+                                                        echo 'secondary';
+                                                }
+                                            ?>">
+                                                <?php echo htmlspecialchars($tarefa['status']); ?>
+                                            </span>
                                             </td>
                                             <td>
                                                 <div class="btn-group">
@@ -553,7 +596,8 @@ $reunioes = $stmt->fetchAll();
                             data: [progressData.etapas, progressData.tarefas],
                             backgroundColor: [
                                 'rgba(54, 162, 235, 0.5)',
-                                'rgba(75, 192, 192, 0.5)'
+                                'rgba(75, 192, 192, 0.5)',
+                                
                             ],
                             borderColor: [
                                 'rgba(54, 162, 235, 1)',
