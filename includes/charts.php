@@ -12,33 +12,18 @@ class ProjectCharts {
     
     public function getProgressData() {
         $totalEtapas = count($this->etapas);
-        $etapasConcluidas = 0;
+        $etapasConcluidas = count(array_filter($this->etapas, function($etapa) {
+            return $etapa['status'] === 'Concluído';
+        }));
+
         $totalTarefas = count($this->tarefas);
-        $tarefasConcluidas = 0;
-        
-        foreach ($this->etapas as $etapa) {
-            if ($etapa['status'] == 'Concluída') {
-                $etapasConcluidas++;
-            }
-        }
-        
-        foreach ($this->tarefas as $tarefa) {
-            if ($tarefa['status'] == 'Concluído') {
-                $tarefasConcluidas++;
-            }
-        }
-        
+        $tarefasConcluidas = count(array_filter($this->tarefas, function($tarefa) {
+            return $tarefa['status'] === 'Concluído';
+        }));
+
         return [
-            'etapas' => [
-                'total' => $totalEtapas,
-                'concluidas' => $etapasConcluidas,
-                'percentual' => $totalEtapas > 0 ? round(($etapasConcluidas / $totalEtapas) * 100) : 0
-            ],
-            'tarefas' => [
-                'total' => $totalTarefas,
-                'concluidas' => $tarefasConcluidas,
-                'percentual' => $totalTarefas > 0 ? round(($tarefasConcluidas / $totalTarefas) * 100) : 0
-            ]
+            'etapas' => ['percentual' => $totalEtapas > 0 ? ($etapasConcluidas / $totalEtapas) * 100 : 0],
+            'tarefas' => ['percentual' => $totalTarefas > 0 ? ($tarefasConcluidas / $totalTarefas) * 100 : 0]
         ];
     }
     

@@ -103,6 +103,60 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
 
         <div class="card">
             <div class="card-body">
+                <!-- Filtros -->
+                <form method="GET" class="mb-3">
+                    <div class="row g-3 align-items-end">
+                        <!-- Filtro por Projeto -->
+                        <div class="col-md-6">
+                            <label for="filtro_projeto" class="form-label">Filtrar por Projeto</label>
+                            <select class="form-select" id="filtro_projeto" name="projeto_id">
+                                <option value="">Todos os Projetos</option>
+                                <?php foreach ($projetos as $projeto): ?>
+                                    <option value="<?php echo $projeto['id']; ?>" 
+                                        <?php echo (isset($_GET['projeto_id']) && $_GET['projeto_id'] == $projeto['id']) ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($projeto['nome']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <!-- Filtro por Nome -->
+                        <div class="col-md-6">
+                            <label for="filtro_nome" class="form-label">Filtrar por Nome</label>
+                            <select class="form-select" id="filtro_nome" name="nome">
+                                <option value="">Todos os Stakeholders</option>
+                                <?php
+                                // Buscar nomes únicos de stakeholders
+                                $stakeholders = $pdo->query("SELECT DISTINCT nome FROM stakeholders ORDER BY nome")->fetchAll();
+                                foreach ($stakeholders as $stakeholder):
+                                ?>
+                                    <option value="<?php echo htmlspecialchars($stakeholder['nome']); ?>" 
+                                        <?php echo (isset($_GET['nome']) && $_GET['nome'] == $stakeholder['nome']) ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($stakeholder['nome']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row mt-3">
+                        <div class="col text-end">
+                            <!-- Botão de Aplicar Filtros -->
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-funnel"></i> Aplicar Filtros
+                            </button>
+                            <!-- Botão de Limpar Filtros -->
+                            <a href="stakeholders.php" class="btn btn-secondary">
+                                <i class="bi bi-x-circle"></i> Limpar Filtros
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
                 <div class="table-responsive">
                     <table class="table table-striped">
                         <thead>
@@ -121,10 +175,35 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
                         <tbody>
                             <?php
                             $sql = "SELECT s.*, p.nome as projeto_nome 
-                                   FROM stakeholders s 
-                                   JOIN projetos p ON s.projeto_id = p.id 
-                                   ORDER BY s.nome";
-                            $stmt = $pdo->query($sql);
+                                    FROM stakeholders s 
+                                    JOIN projetos p ON s.projeto_id = p.id";
+
+                            $conditions = [];
+                            $params = [];
+
+                            if (isset($_GET['projeto_id']) && !empty($_GET['projeto_id'])) {
+                                $conditions[] = "s.projeto_id = :projeto_id";
+                                $params[':projeto_id'] = $_GET['projeto_id'];
+                            }
+
+                            if (isset($_GET['nome']) && !empty($_GET['nome'])) {
+                                $conditions[] = "s.nome = :nome";
+                                $params[':nome'] = $_GET['nome'];
+                            }
+
+                            if (!empty($conditions)) {
+                                $sql .= " WHERE " . implode(" AND ", $conditions);
+                            }
+
+                            $sql .= " ORDER BY s.nome ASC";
+                            $stmt = $pdo->prepare($sql);
+
+                            foreach ($params as $key => $value) {
+                                $stmt->bindValue($key, $value);
+                            }
+
+                            $stmt->execute();
+
                             while ($row = $stmt->fetch()) {
                                 ?>
                                 <tr>
@@ -262,4 +341,4 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
         });
     </script>
 </body>
-</html> 
+</html>

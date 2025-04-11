@@ -78,7 +78,12 @@ $stmt->execute([$id]);
 $totalTarefas = $stmt->fetchColumn();
 $paginationTarefas = new Pagination($totalTarefas, $itemsPerPage, 'page_tarefas');
 
-$sql = "SELECT * FROM tarefas WHERE projeto_id = ? ORDER BY status ASC LIMIT " . 
+$sql = "SELECT t.*, p.nome as projeto_nome, ec.etapa as etapa_nome 
+                FROM tarefas t 
+                JOIN projetos p ON t.projeto_id = p.id                             
+                JOIN etapas_cronograma ec ON t.etapa_id = ec.id 
+                WHERE t.projeto_id = ? 
+                ORDER BY etapa_nome DESC LIMIT " . 
        (int)$paginationTarefas->getLimit() . " OFFSET " . (int)$paginationTarefas->getOffset();
 $stmt = $pdo->prepare($sql);
 $stmt->execute([$id]);
@@ -349,7 +354,7 @@ $reunioes = $stmt->fetchAll();
                             <table class="table table-striped"  <?php if($podeVisualizarRelatorios) { echo 'id="tarefasTable"'; } ?>>
                                 <thead>
                                     <tr>
-                                        <th>Título</th>
+                                        <th>Tarefa</th>
                                         <th>Descrição</th>
                                         <th>Sprint</th>
                                         <th>Responsável</th>
@@ -364,7 +369,7 @@ $reunioes = $stmt->fetchAll();
                                 <tbody>
                                     <?php foreach ($tarefas as $tarefa): ?>
                                         <tr>
-                                            <td><?php echo htmlspecialchars($tarefa['titulo']); ?></td>
+                                            <td><?php echo htmlspecialchars($tarefa['etapa_nome']); ?></td>
                                             <td><?php echo htmlspecialchars($tarefa['descricao']); ?></td>
                                             <td><?php echo htmlspecialchars($tarefa['sprint']); ?></td>
                                             <td><?php echo htmlspecialchars($tarefa['responsavel']); ?></td>
@@ -567,7 +572,25 @@ $reunioes = $stmt->fetchAll();
             // Configuração comum para todas as tabelas
             const tableConfig = {
                 language: {
-                    url: '//cdn.datatables.net/plug-ins/1.11.5/i18n/pt-BR.json'
+                    sEmptyTable: "Nenhum registro encontrado",
+                    sInfo: "Mostrando de _START_ até _END_ de _TOTAL_ registros",
+                    sInfoEmpty: "Mostrando 0 até 0 de 0 registros",
+                    sInfoFiltered: "(Filtrados de _MAX_ registros)",
+                    sLengthMenu: "Mostrar _MENU_ registros",
+                    sLoadingRecords: "Carregando...",
+                    sProcessing: "Processando...",
+                    sSearch: "Pesquisar",
+                    sZeroRecords: "Nenhum registro encontrado",
+                    oPaginate: {
+                        sFirst: "Primeiro",
+                        sLast: "Último",
+                        sNext: "Próximo",
+                        sPrevious: "Anterior"
+                    },
+                    oAria: {
+                        sSortAscending: ": Ordenar colunas de forma ascendente",
+                        sSortDescending: ": Ordenar colunas de forma descendente"
+                    }
                 },
                 dom: 'Bfrtip',
                 buttons: [

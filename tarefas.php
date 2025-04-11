@@ -112,13 +112,13 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
 
         <div class="card">
             <div class="card-body">
-                 <!-- Filtros -->
+                <!-- Filtros -->
                 <form method="GET" class="mb-3">
-                    <div class="row">
-                        <!-- Filtro de Projetos -->
-                        <div class="col-md-4">
+                    <div class="row g-3 align-items-end">
+                        <!-- Filtro por Projeto -->
+                        <div class="col-md-3">
                             <label for="filtro_projeto" class="form-label">Filtrar por Projeto</label>
-                            <select class="form-select" id="filtro_projeto" name="projeto_id" onchange="this.form.submit()">
+                            <select class="form-select" id="filtro_projeto" name="projeto_id">
                                 <option value="">Todos os Projetos</option>
                                 <?php foreach ($projetos as $projeto): ?>
                                     <option value="<?php echo $projeto['id']; ?>" 
@@ -129,10 +129,10 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
                             </select>
                         </div>
 
-                        <!-- Filtro de Sprints -->
-                        <div class="col-md-4">
+                        <!-- Filtro por Sprint -->
+                        <div class="col-md-2">
                             <label for="filtro_sprint" class="form-label">Filtrar por Sprint</label>
-                            <select class="form-select" id="filtro_sprint" name="sprint" onchange="this.form.submit()">
+                            <select class="form-select" id="filtro_sprint" name="sprint">
                                 <option value="">Todas as Sprints</option>
                                 <?php for ($i = 1; $i <= 10; $i++): ?>
                                     <option value="<?php echo $i; ?>" 
@@ -142,6 +142,51 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
                                 <?php endfor; ?>
                             </select>
                         </div>
+
+                        <!-- Filtro por Responsável -->
+                        <div class="col-md-3">
+                            <label for="filtro_responsavel" class="form-label">Filtrar por Responsável</label>
+                            <select class="form-select" id="filtro_responsavel" name="responsavel">
+                                <option value="">Todos os Responsáveis</option>
+                                <?php
+                                // Buscar responsáveis únicos
+                                $responsaveis = $pdo->query("SELECT DISTINCT responsavel FROM tarefas WHERE responsavel IS NOT NULL ORDER BY responsavel")->fetchAll();
+                                foreach ($responsaveis as $responsavel):
+                                ?>
+                                    <option value="<?php echo htmlspecialchars($responsavel['responsavel']); ?>" 
+                                        <?php echo (isset($_GET['responsavel']) && $_GET['responsavel'] == $responsavel['responsavel']) ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($responsavel['responsavel']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <!-- Filtro por Status -->
+                        <div class="col-md-3">
+                            <label for="filtro_status" class="form-label">Filtrar por Status</label>
+                            <select class="form-select" id="filtro_status" name="status">
+                                <option value="">Todos os Status</option>
+                                <option value="Não Iniciado" <?php echo (isset($_GET['status']) && $_GET['status'] == 'Não Iniciado') ? 'selected' : ''; ?>>Não Iniciado</option>
+                                <option value="Em Andamento" <?php echo (isset($_GET['status']) && $_GET['status'] == 'Em Andamento') ? 'selected' : ''; ?>>Em Andamento</option>
+                                <option value="Concluído" <?php echo (isset($_GET['status']) && $_GET['status'] == 'Concluído') ? 'selected' : ''; ?>>Concluído</option>
+                                <option value="Atrasado" <?php echo (isset($_GET['status']) && $_GET['status'] == 'Atrasado') ? 'selected' : ''; ?>>Atrasado</option>
+                                <option value="Cancelado" <?php echo (isset($_GET['status']) && $_GET['status'] == 'Cancelado') ? 'selected' : ''; ?>>Cancelado</option>
+                                <option value="Aguardando" <?php echo (isset($_GET['status']) && $_GET['status'] == 'Aguardando') ? 'selected' : ''; ?>>Aguardando</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row mt-3">
+                        <div class="col text-end">
+                            <!-- Botão de Aplicar Filtros -->
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-funnel"></i> Aplicar Filtros
+                            </button>
+                            <!-- Botão de Limpar Filtros -->
+                            <a href="tarefas.php" class="btn btn-secondary">
+                                <i class="bi bi-x-circle"></i> Limpar Filtros
+                            </a>
+                        </div>
                     </div>
                 </form>
 
@@ -149,7 +194,7 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
                     <table class="table table-striped">
                         <thead>
                             <tr>
-                                <th>Etapa</th>
+                                <th>Tarefa</th>
                                 <th>Descrição</th>
                                 <th>Sprint</th>
                                 <th>Responsável</th>                                
@@ -165,9 +210,9 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
                             <?php
                             // Modificar a consulta SQL para aplicar os filtros
                             $sql = "SELECT t.*, p.nome as projeto_nome, ec.etapa as etapa_nome 
-                            FROM tarefas t 
-                            JOIN projetos p ON t.projeto_id = p.id 
-                            JOIN etapas_cronograma ec ON t.etapa_id = ec.id";
+                                    FROM tarefas t 
+                                    JOIN projetos p ON t.projeto_id = p.id 
+                                    JOIN etapas_cronograma ec ON t.etapa_id = ec.id";
 
                             $conditions = [];
                             $params = [];
@@ -182,11 +227,21 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
                                 $params[':sprint'] = $_GET['sprint'];
                             }
 
+                            if (isset($_GET['responsavel']) && !empty($_GET['responsavel'])) {
+                                $conditions[] = "t.responsavel = :responsavel";
+                                $params[':responsavel'] = $_GET['responsavel'];
+                            }
+
+                            if (isset($_GET['status']) && !empty($_GET['status'])) {
+                                $conditions[] = "t.status = :status";
+                                $params[':status'] = $_GET['status'];
+                            }
+
                             if (!empty($conditions)) {
                                 $sql .= " WHERE " . implode(" AND ", $conditions);
                             }
 
-                            $sql .= " ORDER BY t.data_inicio DESC";
+                            $sql .= " ORDER BY etapa_nome ASC";
                             $stmt = $pdo->prepare($sql);
 
                             foreach ($params as $key => $value) {
@@ -392,4 +447,4 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
         });
     </script>
 </body>
-</html> 
+</html>

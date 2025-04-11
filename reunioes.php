@@ -102,6 +102,50 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
 
         <div class="card">
             <div class="card-body">
+                <!-- Filtros -->
+                <form method="GET" class="mb-3">
+                    <div class="row g-3 align-items-end">
+                        <!-- Filtro por Projeto -->
+                        <div class="col-md-6">
+                            <label for="filtro_projeto" class="form-label">Filtrar por Projeto</label>
+                            <select class="form-select" id="filtro_projeto" name="projeto_id">
+                                <option value="">Todos os Projetos</option>
+                                <?php foreach ($projetos as $projeto): ?>
+                                    <option value="<?php echo $projeto['id']; ?>" 
+                                        <?php echo (isset($_GET['projeto_id']) && $_GET['projeto_id'] == $projeto['id']) ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($projeto['nome']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <!-- Filtro por Responsável -->
+                        <div class="col-md-6">
+                            <label for="filtro_responsavel" class="form-label">Filtrar por Responsável</label>
+                            <input type="text" class="form-control" id="filtro_responsavel" name="responsavel" 
+                                value="<?php echo isset($_GET['responsavel']) ? htmlspecialchars($_GET['responsavel']) : ''; ?>" 
+                                placeholder="Digite o nome do responsável">
+                        </div>
+                    </div>
+
+                    <div class="row mt-3">
+                        <div class="col text-end">
+                            <!-- Botão de Aplicar Filtros -->
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-funnel"></i> Aplicar Filtros
+                            </button>
+                            <!-- Botão de Limpar Filtros -->
+                            <a href="reunioes.php" class="btn btn-secondary">
+                                <i class="bi bi-x-circle"></i> Limpar Filtros
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
                 <div class="table-responsive">
                     <table class="table table-striped">
                         <thead>
@@ -120,10 +164,35 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
                         <tbody>
                             <?php
                             $sql = "SELECT r.*, p.nome as projeto_nome 
-                                   FROM reunioes r 
-                                   JOIN projetos p ON r.projeto_id = p.id 
-                                   ORDER BY r.data_reuniao DESC";
-                            $stmt = $pdo->query($sql);
+                                    FROM reunioes r 
+                                    JOIN projetos p ON r.projeto_id = p.id";
+
+                            $conditions = [];
+                            $params = [];
+
+                            if (isset($_GET['projeto_id']) && !empty($_GET['projeto_id'])) {
+                                $conditions[] = "r.projeto_id = :projeto_id";
+                                $params[':projeto_id'] = $_GET['projeto_id'];
+                            }
+
+                            if (isset($_GET['responsavel']) && !empty($_GET['responsavel'])) {
+                                $conditions[] = "r.responsavel LIKE :responsavel";
+                                $params[':responsavel'] = '%' . $_GET['responsavel'] . '%';
+                            }
+
+                            if (!empty($conditions)) {
+                                $sql .= " WHERE " . implode(" AND ", $conditions);
+                            }
+
+                            $sql .= " ORDER BY r.data_reuniao DESC";
+                            $stmt = $pdo->prepare($sql);
+
+                            foreach ($params as $key => $value) {
+                                $stmt->bindValue($key, $value);
+                            }
+
+                            $stmt->execute();
+
                             while ($row = $stmt->fetch()) {
                                 ?>
                                 <tr>
@@ -231,4 +300,4 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
-</html> 
+</html>

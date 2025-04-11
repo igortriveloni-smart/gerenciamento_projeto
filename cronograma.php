@@ -101,12 +101,13 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
 
         <div class="card">
             <div class="card-body">
-                <!-- Filtro de Projetos -->
+                <!-- Filtros -->
                 <form method="GET" class="mb-3">
-                    <div class="row">
+                    <div class="row g-3 align-items-end">
+                        <!-- Filtro por Projeto -->
                         <div class="col-md-4">
                             <label for="filtro_projeto" class="form-label">Filtrar por Projeto</label>
-                            <select class="form-select" id="filtro_projeto" name="projeto_id" onchange="this.form.submit()">
+                            <select class="form-select" id="filtro_projeto" name="projeto_id">
                                 <option value="">Todos os Projetos</option>
                                 <?php foreach ($projetos as $projeto): ?>
                                     <option value="<?php echo $projeto['id']; ?>" 
@@ -116,9 +117,56 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
                                 <?php endforeach; ?>
                             </select>
                         </div>
+
+                        <!-- Filtro por Responsável -->
+                        <div class="col-md-4">
+                            <label for="filtro_responsavel" class="form-label">Filtrar por Responsável</label>
+                            <select class="form-select" id="filtro_responsavel" name="responsavel">
+                                <option value="">Todos os Responsáveis</option>
+                                <?php
+                                // Buscar responsáveis únicos
+                                $responsaveis = $pdo->query("SELECT DISTINCT responsavel FROM etapas_cronograma WHERE responsavel IS NOT NULL ORDER BY responsavel")->fetchAll();
+                                foreach ($responsaveis as $responsavel):
+                                ?>
+                                    <option value="<?php echo htmlspecialchars($responsavel['responsavel']); ?>" 
+                                        <?php echo (isset($_GET['responsavel']) && $_GET['responsavel'] == $responsavel['responsavel']) ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($responsavel['responsavel']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <!-- Filtro por Status -->
+                        <div class="col-md-4">
+                            <label for="filtro_status" class="form-label">Filtrar por Status</label>
+                            <select class="form-select" id="filtro_status" name="status">
+                                <option value="">Todos os Status</option>
+                                <option value="Não Iniciado" <?php echo (isset($_GET['status']) && $_GET['status'] == 'Não Iniciado') ? 'selected' : ''; ?>>Não Iniciado</option>
+                                <option value="Em Andamento" <?php echo (isset($_GET['status']) && $_GET['status'] == 'Em Andamento') ? 'selected' : ''; ?>>Em Andamento</option>
+                                <option value="Concluído" <?php echo (isset($_GET['status']) && $_GET['status'] == 'Concluído') ? 'selected' : ''; ?>>Concluído</option>
+                                <option value="Atrasado" <?php echo (isset($_GET['status']) && $_GET['status'] == 'Atrasado') ? 'selected' : ''; ?>>Atrasado</option>
+                                <option value="Cancelado" <?php echo (isset($_GET['status']) && $_GET['status'] == 'Cancelado') ? 'selected' : ''; ?>>Cancelado</option>
+                                <option value="Aguardando" <?php echo (isset($_GET['status']) && $_GET['status'] == 'Aguardando') ? 'selected' : ''; ?>>Aguardando</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row mt-3">
+                        <div class="col text-end">
+                            <!-- Botão de Aplicar Filtros -->
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-funnel"></i> Aplicar Filtros
+                            </button>
+                            <!-- Botão de Limpar Filtros -->
+                            <a href="cronograma.php" class="btn btn-secondary">
+                                <i class="bi bi-x-circle"></i> Limpar Filtros
+                            </a>
+                        </div>
                     </div>
                 </form>
+            </div>
 
+            <div class="card-body">
                 <!-- Tabela de Etapas -->
                 <div class="table-responsive">
                     <table class="table table-striped">
@@ -137,20 +185,37 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
                         </thead>
                         <tbody>
                             <?php
-                            // Modificar a consulta SQL para aplicar o filtro
                             $sql = "SELECT ec.*, p.nome as projeto_nome 
                                     FROM etapas_cronograma ec 
                                     JOIN projetos p ON ec.projeto_id = p.id";
 
+                            $conditions = [];
+                            $params = [];
+
                             if (isset($_GET['projeto_id']) && !empty($_GET['projeto_id'])) {
-                                $sql .= " WHERE ec.projeto_id = :projeto_id";
+                                $conditions[] = "ec.projeto_id = :projeto_id";
+                                $params[':projeto_id'] = $_GET['projeto_id'];
+                            }
+
+                            if (isset($_GET['responsavel']) && !empty($_GET['responsavel'])) {
+                                $conditions[] = "ec.responsavel = :responsavel";
+                                $params[':responsavel'] = $_GET['responsavel'];
+                            }
+
+                            if (isset($_GET['status']) && !empty($_GET['status'])) {
+                                $conditions[] = "ec.status = :status";
+                                $params[':status'] = $_GET['status'];
+                            }
+
+                            if (!empty($conditions)) {
+                                $sql .= " WHERE " . implode(" AND ", $conditions);
                             }
 
                             $sql .= " ORDER BY ec.data_inicio ASC";
                             $stmt = $pdo->prepare($sql);
 
-                            if (isset($_GET['projeto_id']) && !empty($_GET['projeto_id'])) {
-                                $stmt->bindParam(':projeto_id', $_GET['projeto_id'], PDO::PARAM_INT);
+                            foreach ($params as $key => $value) {
+                                $stmt->bindValue($key, $value);
                             }
 
                             $stmt->execute();
@@ -322,4 +387,4 @@ $projetos = $pdo->query("SELECT id, nome FROM projetos ORDER BY nome")->fetchAll
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
-</html> 
+</html>
