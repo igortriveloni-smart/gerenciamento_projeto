@@ -1,6 +1,5 @@
 <?php
 require_once 'config/database.php';
-require_once 'includes/cache.php';
 require_once 'includes/pagination.php';
 require_once 'includes/charts.php';
 require_once 'includes/auth.php';
@@ -34,24 +33,16 @@ if (!isset($_GET['id'])) {
 }
 
 $id = $_GET['id'];
-$cache = new Cache();
 
-// Buscar dados do projeto com cache
-$cacheKey = "projeto_{$id}";
-$projeto = $cache->get($cacheKey);
+// Buscar dados do projeto diretamente do banco de dados
+$sql = "SELECT * FROM projetos WHERE id = ?";
+$stmt = $pdo->prepare($sql);
+$stmt->execute([$id]);
+$projeto = $stmt->fetch();
 
-if ($projeto === false) {
-    $sql = "SELECT * FROM projetos WHERE id = ?";
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([$id]);
-    $projeto = $stmt->fetch();
-    
-    if (!$projeto) {
-        header('Location: index.php');
-        exit;
-    }
-    
-    $cache->set($cacheKey, $projeto);
+if (!$projeto) {
+    header('Location: index.php');
+    exit;
 }
 
 // Configurar paginação
@@ -171,9 +162,30 @@ $reunioes = $stmt->fetchAll();
                                 <p><strong>Gestor:</strong> <?php echo htmlspecialchars($projeto['gestor']); ?></p>
                                 <p><strong>Ponto Focal:</strong> <?php echo htmlspecialchars($projeto['ponto_focal']); ?></p>
                                 <p><strong>Status:</strong> 
-                                    <span class="badge bg-<?php echo $projeto['status'] == 'Concluído' ? 'success' : 
-                                        ($projeto['status'] == 'Em Andamento' ? 'primary' : 
-                                        ($projeto['status'] == 'Atrasado' ? 'danger' : 'secondary')); ?>">
+                                    <span class="badge bg-<?php 
+                                        switch ($projeto['status']) {
+                                            case 'Concluído':
+                                                echo 'success';
+                                                break;
+                                            case 'Em Andamento':
+                                                echo 'primary';
+                                                break;
+                                            case 'Atrasado':
+                                                echo 'danger';
+                                                break;
+                                            case 'Cancelado':
+                                                echo 'dark';
+                                                break;
+                                            case 'Aguardando':
+                                                echo 'warning';
+                                                break;
+                                            case 'Não Iniciado':
+                                                echo 'secondary';
+                                                break;
+                                            default:
+                                                echo 'secondary';
+                                        }
+                                    ?>">
                                         <?php echo htmlspecialchars($projeto['status']); ?>
                                     </span>
                                 </p>
@@ -681,4 +693,4 @@ $reunioes = $stmt->fetchAll();
         });
     </script>
 </body>
-</html> 
+</html>
